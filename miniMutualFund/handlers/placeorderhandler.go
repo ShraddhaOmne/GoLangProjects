@@ -56,6 +56,7 @@ func (o *OrderHandler) CreateOrder(msg *messaging.Messaging, rdb *redis.RedisCli
 
 		order.Status = "PLACED"
 		order.CreatedAt = time.Now().Unix()
+		msg.ChMessaging <- order.ToBytes()
 		order, err = o.Create(order)
 		if err != nil {
 			return err

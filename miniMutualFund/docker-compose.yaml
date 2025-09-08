@@ -181,7 +181,7 @@ services:
     networks: [demo-network] 
 
   mini-mutual-fund:
-    image:  docker.io/shraddha1003/mini-mutual-fund-e2e:v02
+    image:  docker.io/shraddha1003/mini-mutual-fund-e2e:v03
     container_name: mini-mutual-fund
     environment:
       PORT: "8089"
