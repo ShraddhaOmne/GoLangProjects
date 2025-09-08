@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"food-delivery/database"
-	"food-delivery/handlers"
-	"food-delivery/messaging"
-	"food-delivery/models"
+	"miniMutualFund/database"
+	"miniMutualFund/handlers"
+	"miniMutualFund/messaging"
+	"miniMutualFund/models"
+	navredis "miniMutualFund/redis"
 	"os"
 	"strings"
 
@@ -25,7 +27,7 @@ var (
 )
 
 func main() {
-	service := "food-delivery"
+	service := "miniMutualFund"
 	flag.BoolVar(&debug, "debug", false, "sets log level to debug")
 	flag.Parse()
 
@@ -54,15 +56,20 @@ func main() {
 	}
 	log.Info().Str("service", service).Msg("database connection is established")
 	Init(db)
+	var ctx = context.Background()
 
-	msgUsersCreated := messaging.NewMessaging("orders.v1", strings.Split(SEEDS, ","))
+	msgUsersCreated := messaging.NewMessaging("omnenest.mf.created", strings.Split(SEEDS, ","))
 	go msgUsersCreated.ProduceRecords()
 
 	go msgUsersCreated.ConsumeRecords()
 
+	// initialize redis client
+	rdb := navredis.NewRedisClient()
+	handlers.StartNAVSimulator(ctx, rdb, []string{"SBI001", "ICICI001", "HDFC001", "SBI002", "ICICI002", "HDFC002", "SBI003", "ICICI003", "HDFC003"})
+
 	app := fiber.New()
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*", // your frontend
+		AllowOrigins: "*",
 		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
@@ -75,21 +82,18 @@ func main() {
 	app.Get("ping", handlers.Ping)
 	app.Get("/health", handlers.Health)
 
-	orderHandler := handlers.NewOrderHandler(database.NewOrderDB(db), database.NewOrderEventDB(db))
-	order_group := app.Group("/api/v1/orders")
-	order_group.Post("/", orderHandler.CreateOrder(msgUsersCreated))
-	order_group.Get("/:order_id", orderHandler.GetOrder())
+	orderHandler := handlers.NewOrderHandler(database.NewOrderDB(db))
+	authHandler := &handlers.AuthHandler{}
 
-	//order_group.Get("/:id", orderHandler.GetOrderBy.GetUserBy)
-	// user_group.Get("/all/:limit/:offset", userHandler.GetUsersByLimit)
-
-	// order_group := app.Group("/api/v1/users/orders")
-	// order_group.Post("/", userHandler.CreateOrder)
+	app.Post("/login", authHandler.Login)
+	order_group := app.Group("/")
+	order_group.Post("orders", orderHandler.CreateOrder(msgUsersCreated, rdb))
+	order_group.Get("orders", orderHandler.GetAllOrders())
 
 	app.Listen(":" + PORT)
 
 }
 
 func Init(db *gorm.DB) {
-	db.AutoMigrate(&models.Orders{}, &models.OrdersEvent{})
+	db.AutoMigrate(&models.PlaceOrder{})
 }

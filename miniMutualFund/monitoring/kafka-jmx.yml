@@ -1,0 +1,11 @@
+﻿startDelaySeconds: 0
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+rules:
+  - pattern: 'kafka.server<type=(.+), name=(.+)PerSec\\w*, topic=(.+)><>Count'
+    name: kafka_
+    labels: { topic: "" }
+    type: COUNTER
+  - pattern: 'kafka.server<type=(.+), name=(.+)PerSec\\w*><>Count'
+    name: kafka_
+    type: COUNTER
